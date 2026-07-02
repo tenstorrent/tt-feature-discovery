@@ -51,6 +51,18 @@ spec:
             - --sys-bus-pci-dir=/host-sys/bus/pci/devices
             - --feature-file=/etc/kubernetes/node-feature-discovery/features.d/tt-fd
             - --interval=60s
+            # Uncomment to enable FSD-derived datacenter labels
+            # (hall / aisle / rack / shelf-u / motherboard / host-id).
+            # - --fabric-manager-address=fabric-manager.tt-fabric-manager.svc:50051
+            # - --fabric-manager-poll-interval=5m
+          env:
+            # Node hostname used to match FSD.Host.hostname. spec.nodeName
+            # is what other Tenstorrent charts (tt-orchestration, tt-flux)
+            # use as the FSD key.
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

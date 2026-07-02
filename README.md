@@ -12,7 +12,9 @@ direct contact with the API server, no service account.
 
 ## v1 scope
 
-A single label:
+Two label families:
+
+### Presence (always on)
 
 | Label                          | Value  | Meaning                                  |
 | ------------------------------ | ------ | ---------------------------------------- |
@@ -21,6 +23,32 @@ A single label:
 Detection scans the PCI sysfs (`/sys/bus/pci/devices/*/vendor`) for the
 Tenstorrent vendor ID `0x1e52`. Nodes without a Tenstorrent device publish
 no `tenstorrent.com/*` labels.
+
+### Datacenter placement (opt-in, via tt-fabric-manager)
+
+When `--fabric-manager-address` is set, tt-feature-discovery calls
+`FabricManagerService.QueryFactorySystemDescriptor` on tt-fabric-manager,
+looks the node up in the FSD by hostname, and publishes:
+
+| Label                                          | Source                                        |
+| ---------------------------------------------- | --------------------------------------------- |
+| `tenstorrent.com/datacenter.hall`              | `FSD.Host.hall` (lowercased, sanitized)       |
+| `tenstorrent.com/datacenter.aisle`             | `FSD.Host.aisle`                              |
+| `tenstorrent.com/datacenter.rack`              | `FSD.Host.rack` (integer)                     |
+| `tenstorrent.com/datacenter.shelf-u`           | `FSD.Host.shelf_u` (integer)                  |
+| `tenstorrent.com/datacenter.motherboard`       | `FSD.Host.motherboard`                        |
+| `tenstorrent.com/host-id`                      | Positional index of this host in `FSD.hosts`  |
+| `tenstorrent.com/systems.host-count`           | `len(FSD.hosts)` in the containing mesh       |
+| `tenstorrent.com/systems.eth-connection-count` | `len(FSD.eth_connections.connection)`         |
+
+Empty FSD fields are skipped rather than emitted with an empty value.
+Nodes not present in the FSD publish no datacenter labels but still get
+the presence label.
+
+This is v0 of FSD-derived labeling. The FSD schema is mirrored under
+`proto/factory_system_descriptor.proto` for Go binding generation; any
+change to the upstream schema (tt-metal / tt-fabric-manager) requires a
+coordinated update to this repo's copy.
 
 ## Prerequisites
 
