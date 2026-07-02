@@ -1,0 +1,53 @@
+// Factory System Descriptor (FSD) schema.
+//
+// Local mirror of tt-metal's
+// tools/scaleout/factory_system_descriptor/schemas/factory_system_descriptor.proto.
+// Kept in-tree so we can generate Go bindings without a submodule.
+// Field numbers must not drift from upstream — the FSD flows in over gRPC
+// as a serialized FactorySystemDescriptor and we deserialize it here.
+syntax = "proto3";
+
+package tt.scaleout_tools.fsd.proto;
+
+option go_package = "github.com/tenstorrent/tt-feature-discovery/internal/fabric/fsdpb";
+
+message FactorySystemDescriptor {
+    message Host {
+        string hostname = 1;
+        string hall = 2;
+        string aisle = 3;
+        uint32 rack = 4;
+        uint32 shelf_u = 5;
+        string motherboard = 6;
+    }
+
+    message BoardLocationType {
+        uint32 host_id = 1;
+        uint32 tray_id = 2;
+        string board_type = 3;
+    }
+
+    message BoardTypes {
+        repeated BoardLocationType board_locations = 1;
+    }
+
+    message EndPoint {
+        uint32 host_id = 1;
+        uint32 tray_id = 2;
+        uint32 asic_location = 3;
+        uint32 chan_id = 4;
+    }
+
+    message Connection {
+        EndPoint endpoint_a = 1;
+        EndPoint endpoint_b = 2;
+    }
+
+    message EthConnections {
+        repeated Connection connection = 1;
+    }
+
+    repeated Host hosts = 1;
+    BoardTypes board_types = 2;
+    EthConnections eth_connections = 3;
+}

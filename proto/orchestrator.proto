@@ -1,0 +1,40 @@
+// Minimal client-side subset of tt-fabric-manager's orchestrator.proto.
+//
+// tt-feature-discovery only needs the QueryFactorySystemDescriptor RPC, so
+// we stub out the FabricManagerService with just that method. gRPC service
+// dispatch is method-name based, so calling this against a real fabric
+// manager (which implements the full service) works fine.
+//
+// If the FSD RPC signature ever changes upstream, keep this in sync with
+// tt-fabric-manager/proto/orchestrator.proto.
+syntax = "proto3";
+
+package fabricmanager.orchestrator;
+
+option go_package = "github.com/tenstorrent/tt-feature-discovery/internal/fabric/orchestratorpb";
+
+service FabricManagerService {
+    // Returns one or more factory system descriptors. Each file's
+    // textproto_bytes is the *binary* serialized FactorySystemDescriptor
+    // (the field name is misleading; see tt-fabric-manager
+    // controller/orchestrator_service_impl.cpp).
+    rpc QueryFactorySystemDescriptor(QueryFactorySystemDescriptorRequest)
+        returns (QueryFactorySystemDescriptorResponse);
+}
+
+message QueryFactorySystemDescriptorRequest {
+    // If non-empty, restrict returned FSDs to those containing every listed
+    // hostname. Empty means "return all loaded FSDs".
+    repeated string hosts = 1;
+}
+
+message FactorySystemDescriptorFile {
+    // Binary-serialized FactorySystemDescriptor. Despite the name, this is
+    // not textproto — see comment on the RPC above.
+    bytes textproto_bytes = 1;
+    string name = 2;
+}
+
+message QueryFactorySystemDescriptorResponse {
+    repeated FactorySystemDescriptorFile fsd_file = 1;
+}
