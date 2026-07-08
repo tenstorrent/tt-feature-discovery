@@ -16,9 +16,9 @@ Two label families:
 
 ### Presence (always on)
 
-| Label                          | Value  | Meaning                                  |
-| ------------------------------ | ------ | ---------------------------------------- |
-| `tenstorrent.com/npu.present`  | `true` | Host has ≥1 Tenstorrent PCI device       |
+| Label                     | Value  | Meaning                            |
+| ------------------------- | ------ | ---------------------------------- |
+| `tenstorrent.com/present` | `true` | Host has ≥1 Tenstorrent PCI device |
 
 Detection scans the PCI sysfs (`/sys/bus/pci/devices/*/vendor`) for the
 Tenstorrent vendor ID `0x1e52`. Nodes without a Tenstorrent device publish
@@ -68,7 +68,7 @@ Verify on a node with Tenstorrent hardware:
 
 ```bash
 kubectl get node <node> -o jsonpath='{.metadata.labels}' | tr ',' '\n' | grep tenstorrent
-# feature.node.kubernetes.io/tenstorrent.com-npu.present: "true"
+# feature.node.kubernetes.io/tenstorrent.com-present: "true"
 ```
 
 NFD prefixes locally-sourced labels with `feature.node.kubernetes.io/`. To

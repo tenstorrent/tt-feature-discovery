@@ -11,7 +11,7 @@ func TestWrite(t *testing.T) {
 	path := filepath.Join(dir, "tt-fd")
 
 	if err := Write(path, map[string]string{
-		"tenstorrent.com/npu.present": "true",
+		"tenstorrent.com/present": "true",
 	}); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
@@ -20,7 +20,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}
-	want := "tenstorrent.com/npu.present=true\n"
+	want := "tenstorrent.com/present=true\n"
 	if string(got) != want {
 		t.Errorf("body = %q, want %q", got, want)
 	}
@@ -58,7 +58,7 @@ func TestWriteCreatesParentDir(t *testing.T) {
 func TestWriteIsNoopWhenUnchanged(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tt-fd")
-	labels := map[string]string{"tenstorrent.com/npu.present": "true"}
+	labels := map[string]string{"tenstorrent.com/present": "true"}
 
 	if err := Write(path, labels); err != nil {
 		t.Fatalf("first Write: %v", err)

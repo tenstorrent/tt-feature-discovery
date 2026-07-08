@@ -6,7 +6,7 @@
 // line into a real node label. This program never talks to the API server.
 //
 // v1 scope:
-//   - tenstorrent.com/npu.present=true  (from PCI sysfs scan)
+//   - tenstorrent.com/present=true  (from PCI sysfs scan)
 //   - tenstorrent.com/datacenter.*, host-id, systems.* — optional,
 //     enabled by passing --fabric-manager-address. Values come from the
 //     Factory System Descriptor served by tt-fabric-manager.
@@ -31,7 +31,7 @@ import (
 	"github.com/tenstorrent/tt-feature-discovery/internal/labels"
 )
 
-const labelNPUPresent = "tenstorrent.com/npu.present"
+const labelPresent = "tenstorrent.com/present"
 
 type config struct {
 	sysBusPCIDir string
@@ -108,7 +108,7 @@ func (r *reconciler) runOnce(ctx context.Context, log *slog.Logger) error {
 
 	out := map[string]string{}
 	if present {
-		out[labelNPUPresent] = "true"
+		out[labelPresent] = "true"
 	}
 
 	fsdLabels := r.fetchFSDLabels(ctx, log)
