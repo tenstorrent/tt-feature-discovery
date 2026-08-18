@@ -10,9 +10,9 @@ direct contact with the API server, no service account.
 
 [nfd]: https://github.com/kubernetes-sigs/node-feature-discovery
 
-## v1 scope
+## Labels
 
-A single label:
+### From the host PCI bus
 
 | Label                            | Value  | Meaning                            |
 | -------------------------------- | ------ | ---------------------------------- |
@@ -22,11 +22,56 @@ Detection scans the PCI sysfs (`/sys/bus/pci/devices/*/vendor`) for the
 Tenstorrent vendor ID `0x1e52`. Nodes without a Tenstorrent device publish
 no `tenstorrent.com/*` labels.
 
+### From tt-fabric-manager
+
+Set `--fabric-manager-address` to enable these. tt-feature-discovery calls
+[tt-fabric-manager][ttfm]'s `QueryTopologySummary` RPC, which returns a
+structured per-host record. The fabric manager is the component that owns
+factory-system-descriptor (FSD) interpretation, so these labels are a direct
+projection of its answer rather than a second, independent FSD parser.
+
+| Label                                  | Example       | Source                                   |
+| -------------------------------------- | ------------- | ---------------------------------------- |
+| `tenstorrent.com/asic.count`           | `8`           | ASICs the fabric manager sees on the host |
+| `tenstorrent.com/asic.arch`            | `wormhole_b0` | ASIC architecture                        |
+| `tenstorrent.com/datacenter.hall`      | `aus2`        | FSD physical location                    |
+| `tenstorrent.com/datacenter.aisle`     | `a1`          | FSD physical location                    |
+| `tenstorrent.com/datacenter.rack`      | `12`          | FSD physical location                    |
+| `tenstorrent.com/datacenter.shelf-u`   | `34`          | FSD physical location                    |
+| `tenstorrent.com/fabric.connected-hosts` | `2`         | Hosts reachable via this host's exit nodes |
+| `tenstorrent.com/fabric.group-size`    | `3`           | Hosts in this host's connectivity group  |
+| `tenstorrent.com/fabric.source`        | `psd-fsd`     | Which view the fabric manager had: `psd`, `fsd`, or `psd-fsd` |
+
+The query uses `COMBINED_PSD_FSD`, the only source carrying both live ASIC
+counts (PSD) and datacenter location (FSD). A cluster with no FSD loaded gets
+PSD-only records, so the `datacenter.*` labels are simply absent — which is
+also why `fabric.source` is published, to make that distinction visible on the
+node.
+
+[ttfm]: https://github.com/tenstorrent/tt-fabric-manager
+
+### Degradation
+
+Fabric labels are best-effort and never block `device.present`:
+
+- No `--fabric-manager-address` → only `device.present` is published.
+- Node unknown to the fabric manager (agent not registered) → no fabric labels.
+- Fabric manager unreachable → the last known summary keeps being published for
+  `--fabric-max-stale` (default 30m), so a controller restart does not strip
+  every node's labels. Past that window the fabric labels drop.
+
+Node identity is matched on the name the fabric-manager agent registered under
+(its `gethostname()`). Pass it via `--node-name` or `NODE_NAME`; the DaemonSet
+sets `NODE_NAME` from `spec.nodeName`. Matching falls back to a
+case-insensitive comparison of the leading DNS label.
+
 ## Prerequisites
 
 - A cluster with NFD installed (the [tt-operator][tt-operator] umbrella chart
   installs NFD with the right config).
 - NFD worker configured with the `local` feature source (default).
+- For fabric labels: tt-fabric-manager installed, with its agent running on the
+  nodes to be labelled.
 
 [tt-operator]: https://github.com/tenstorrent/tt-operator
 
@@ -54,6 +99,7 @@ make build        # go build ./...
 make test         # go test ./...
 make vet          # go vet ./...
 make lint         # golangci-lint run
+make proto        # regenerate the fabric-manager gRPC bindings
 make docker-build IMAGE=... TAG=...
 ```
 
@@ -63,6 +109,11 @@ CI workflows (`.github/workflows/`):
   `golangci-lint`, and a no-push container build for `linux/amd64`.
 - `release.yaml` — on push to `main` or a `v*` tag: builds and pushes
   `ghcr.io/tenstorrent/tt-feature-discovery` with semantic tags.
+
+`proto/orchestrator.proto` is a client-side subset of tt-fabric-manager's
+proto of the same name, carrying only `QueryTopologySummary`. Field numbers are
+the wire contract — keep them in sync with upstream. The generated bindings
+under `internal/fabric/orchestratorpb/` are checked in.
 
 ## License
 
