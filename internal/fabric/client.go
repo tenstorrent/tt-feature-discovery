@@ -46,12 +46,22 @@ type dialer func(target string, opts ...grpc.DialOption) (*grpc.ClientConn, erro
 // context needed to derive labels.
 type Summary struct {
 	Host *orchpb.HostSummary
-	// GroupSize is the number of hosts in the connectivity group containing
-	// this host, or 0 when the fabric manager reported no grouping.
-	GroupSize int
+	// Group is the connectivity group containing this host: its FSD-derived
+	// name (empty when the fabric manager could not derive one) and member
+	// count (0 when the host is in no reported group).
+	Group Grouping
+	// Pod is the group's innermost subdivision containing this host. A host
+	// that belongs to no pod leaves this zero.
+	Pod Grouping
 	// Stale is true when the fabric manager could not be reached and this
 	// summary came from the cache.
 	Stale bool
+}
+
+// Grouping names a set of hosts and records how many there are.
+type Grouping struct {
+	Name string
+	Size int
 }
 
 // Client wraps the fabric-manager gRPC client and caches the last successful
@@ -119,10 +129,12 @@ func (c *Client) HostSummary(ctx context.Context, hostname string) (*Summary, er
 	if !ok {
 		return nil, ErrHostNotFound
 	}
+	group, pod := grouping(resp, host.GetHostName())
 	return &Summary{
-		Host:      host,
-		GroupSize: groupSize(resp, host.GetHostName()),
-		Stale:     stale,
+		Host:  host,
+		Group: group,
+		Pod:   pod,
+		Stale: stale,
 	}, nil
 }
 
@@ -193,14 +205,32 @@ func shortName(s string) string {
 	return s
 }
 
-// groupSize returns the size of the host group containing hostName.
-func groupSize(resp *orchpb.QueryTopologySummaryResponse, hostName string) int {
+// grouping returns the connectivity group containing hostName and, within it,
+// the pod containing hostName. Pods are only reported when they sit deeper
+// than the group itself, and not every member of a group belongs to one, so a
+// zero pod is normal rather than an error.
+func grouping(resp *orchpb.QueryTopologySummaryResponse, hostName string) (group, pod Grouping) {
 	for _, g := range resp.GetHostGroups() {
-		for _, n := range g.GetHostNames() {
-			if n == hostName {
-				return len(g.GetHostNames())
+		if !contains(g, hostName) {
+			continue
+		}
+		group = Grouping{Name: g.GetName(), Size: len(g.GetHostNames())}
+		for _, p := range g.GetPods() {
+			if contains(p, hostName) {
+				pod = Grouping{Name: p.GetName(), Size: len(p.GetHostNames())}
+				break
 			}
 		}
+		return group, pod
 	}
-	return 0
+	return Grouping{}, Grouping{}
+}
+
+func contains(g *orchpb.HostGrouping, hostName string) bool {
+	for _, n := range g.GetHostNames() {
+		if n == hostName {
+			return true
+		}
+	}
+	return false
 }

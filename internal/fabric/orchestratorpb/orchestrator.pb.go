@@ -416,9 +416,22 @@ func (x *HostSummary) GetMetadata() *HostMetadata {
 	return nil
 }
 
+// A connected group of hosts (a connected component over cross-host links),
+// optionally named after the FSD cabling hierarchy the members share.
 type HostGrouping struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	HostNames     []string               `protobuf:"bytes,1,rep,name=host_names,json=hostNames,proto3" json:"host_names,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	HostNames []string               `protobuf:"bytes,1,rep,name=host_names,json=hostNames,proto3" json:"host_names,omitempty"`
+	// Display name derived from the instance path common to the members, e.g.
+	// "110-SC36_4x4_C1-10". Empty when no member is described by an FSD or the
+	// members share no common instance path. May contain '/' separators, and a
+	// " (2)" suffix when two groups derive the same name.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// The pods this group subdivides into, named relative to the group, e.g.
+	// "bh_galaxy_sp_0". A pod is the deepest instance path prefix that still
+	// covers more than one host. Empty when the members are not FSD-described
+	// or the hierarchy bottoms out at the group; a member in no pod appears
+	// only in host_names.
+	Pods          []*HostGrouping `protobuf:"bytes,3,rep,name=pods,proto3" json:"pods,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -456,6 +469,20 @@ func (*HostGrouping) Descriptor() ([]byte, []int) {
 func (x *HostGrouping) GetHostNames() []string {
 	if x != nil {
 		return x.HostNames
+	}
+	return nil
+}
+
+func (x *HostGrouping) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *HostGrouping) GetPods() []*HostGrouping {
+	if x != nil {
+		return x.Pods
 	}
 	return nil
 }
@@ -552,10 +579,12 @@ const file_orchestrator_proto_rawDesc = "" +
 	"\x10unexpected_links\x18\b \x03(\v2+.fabricmanager.orchestrator.HostConnectionsR\x0funexpectedLinks\x12B\n" +
 	"\x06source\x18\t \x01(\x0e2*.fabricmanager.orchestrator.TopologySourceR\x06source\x12D\n" +
 	"\bmetadata\x18\n" +
-	" \x01(\v2(.fabricmanager.orchestrator.HostMetadataR\bmetadata\"-\n" +
+	" \x01(\v2(.fabricmanager.orchestrator.HostMetadataR\bmetadata\"\x7f\n" +
 	"\fHostGrouping\x12\x1d\n" +
 	"\n" +
-	"host_names\x18\x01 \x03(\tR\thostNames\"\xdd\x01\n" +
+	"host_names\x18\x01 \x03(\tR\thostNames\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12<\n" +
+	"\x04pods\x18\x03 \x03(\v2(.fabricmanager.orchestrator.HostGroupingR\x04pods\"\xdd\x01\n" +
 	"\x1cQueryTopologySummaryResponse\x12=\n" +
 	"\x05hosts\x18\x01 \x03(\v2'.fabricmanager.orchestrator.HostSummaryR\x05hosts\x123\n" +
 	"\x16total_cross_host_links\x18\x02 \x01(\x05R\x13totalCrossHostLinks\x12I\n" +
@@ -600,15 +629,16 @@ var file_orchestrator_proto_depIdxs = []int32{
 	2,  // 4: fabricmanager.orchestrator.HostSummary.unexpected_links:type_name -> fabricmanager.orchestrator.HostConnections
 	0,  // 5: fabricmanager.orchestrator.HostSummary.source:type_name -> fabricmanager.orchestrator.TopologySource
 	4,  // 6: fabricmanager.orchestrator.HostSummary.metadata:type_name -> fabricmanager.orchestrator.HostMetadata
-	5,  // 7: fabricmanager.orchestrator.QueryTopologySummaryResponse.hosts:type_name -> fabricmanager.orchestrator.HostSummary
-	6,  // 8: fabricmanager.orchestrator.QueryTopologySummaryResponse.host_groups:type_name -> fabricmanager.orchestrator.HostGrouping
-	1,  // 9: fabricmanager.orchestrator.FabricManagerService.QueryTopologySummary:input_type -> fabricmanager.orchestrator.QueryTopologySummaryRequest
-	7,  // 10: fabricmanager.orchestrator.FabricManagerService.QueryTopologySummary:output_type -> fabricmanager.orchestrator.QueryTopologySummaryResponse
-	10, // [10:11] is the sub-list for method output_type
-	9,  // [9:10] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	6,  // 7: fabricmanager.orchestrator.HostGrouping.pods:type_name -> fabricmanager.orchestrator.HostGrouping
+	5,  // 8: fabricmanager.orchestrator.QueryTopologySummaryResponse.hosts:type_name -> fabricmanager.orchestrator.HostSummary
+	6,  // 9: fabricmanager.orchestrator.QueryTopologySummaryResponse.host_groups:type_name -> fabricmanager.orchestrator.HostGrouping
+	1,  // 10: fabricmanager.orchestrator.FabricManagerService.QueryTopologySummary:input_type -> fabricmanager.orchestrator.QueryTopologySummaryRequest
+	7,  // 11: fabricmanager.orchestrator.FabricManagerService.QueryTopologySummary:output_type -> fabricmanager.orchestrator.QueryTopologySummaryResponse
+	11, // [11:12] is the sub-list for method output_type
+	10, // [10:11] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_orchestrator_proto_init() }

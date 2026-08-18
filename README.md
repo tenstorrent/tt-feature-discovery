@@ -39,8 +39,20 @@ projection of its answer rather than a second, independent FSD parser.
 | `tenstorrent.com/datacenter.rack`      | `12`          | FSD physical location                    |
 | `tenstorrent.com/datacenter.shelf-u`   | `34`          | FSD physical location                    |
 | `tenstorrent.com/fabric.connected-hosts` | `2`         | Hosts reachable via this host's exit nodes |
+| `tenstorrent.com/fabric.group`         | `110-sc36_4x4_c1-10` | Name of this host's connectivity group |
 | `tenstorrent.com/fabric.group-size`    | `3`           | Hosts in this host's connectivity group  |
+| `tenstorrent.com/fabric.pod`           | `bh_galaxy_sp_0` | Name of this host's pod within the group |
+| `tenstorrent.com/fabric.pod-size`      | `2`           | Hosts in this host's pod                 |
 | `tenstorrent.com/fabric.source`        | `psd-fsd`     | Which view the fabric manager had: `psd`, `fsd`, or `psd-fsd` |
+
+A group is a connected component over cross-host fabric links. Its name, and
+the pods it subdivides into, come from the FSD cabling hierarchy: a pod is the
+deepest instance-path prefix that still covers more than one host. Both names
+are best-effort — the fabric manager leaves a group unnamed when no member is
+FSD-described, omits pods when the hierarchy bottoms out at the group, and a
+host can belong to a group but to no pod. Names carry `/` separators and an
+occasional ` (2)` disambiguating suffix, which are folded to `-` to fit the
+Kubernetes label value grammar.
 
 The query uses `COMBINED_PSD_FSD`, the only source carrying both live ASIC
 counts (PSD) and datacenter location (FSD). A cluster with no FSD loaded gets

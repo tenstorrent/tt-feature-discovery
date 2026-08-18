@@ -33,7 +33,10 @@ const (
 	LabelASICArch  = "tenstorrent.com/asic.arch"
 
 	LabelFabricConnectedHosts = "tenstorrent.com/fabric.connected-hosts"
+	LabelFabricGroup          = "tenstorrent.com/fabric.group"
 	LabelFabricGroupSize      = "tenstorrent.com/fabric.group-size"
+	LabelFabricPod            = "tenstorrent.com/fabric.pod"
+	LabelFabricPodSize        = "tenstorrent.com/fabric.pod-size"
 	LabelFabricSource         = "tenstorrent.com/fabric.source"
 )
 
@@ -67,9 +70,19 @@ func FromFabricSummary(s *fabric.Summary) map[string]string {
 	if hosts := s.Host.GetConnectedHosts(); len(hosts) > 0 {
 		out[LabelFabricConnectedHosts] = strconv.Itoa(len(hosts))
 	}
-	if s.GroupSize > 0 {
-		out[LabelFabricGroupSize] = strconv.Itoa(s.GroupSize)
+	// Group and pod names come from the FSD cabling hierarchy, so they carry
+	// '/' separators and occasionally a " (2)" disambiguating suffix; the
+	// sanitizer folds both into '-'. A host in a group the fabric manager
+	// could not name still gets the size.
+	put(LabelFabricGroup, s.Group.Name)
+	if s.Group.Size > 0 {
+		out[LabelFabricGroupSize] = strconv.Itoa(s.Group.Size)
 	}
+	put(LabelFabricPod, s.Pod.Name)
+	if s.Pod.Size > 0 {
+		out[LabelFabricPodSize] = strconv.Itoa(s.Pod.Size)
+	}
+
 	put(LabelFabricSource, sourceName(s.Host.GetSource()))
 
 	return out

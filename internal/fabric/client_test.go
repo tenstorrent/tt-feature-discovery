@@ -69,7 +69,14 @@ func sampleResponse() *orchpb.QueryTopologySummaryResponse {
 			{HostName: "e01cs02", AsicCount: 8},
 		},
 		HostGroups: []*orchpb.HostGrouping{
-			{HostNames: []string{"e01cs01", "e01cs02", "e01cs03"}},
+			{
+				HostNames: []string{"e01cs01", "e01cs02", "e01cs03"},
+				Name:      "110-SC36_4x4_C1-10",
+				Pods: []*orchpb.HostGrouping{
+					{Name: "bh_galaxy_sp_0", HostNames: []string{"e01cs01", "e01cs02"}},
+					{Name: "bh_galaxy_sp_1", HostNames: []string{"e01cs03"}},
+				},
+			},
 		},
 	}
 }
@@ -85,8 +92,11 @@ func TestHostSummaryFound(t *testing.T) {
 	if got.Host.GetAsicCount() != 8 {
 		t.Errorf("asic count = %d, want 8", got.Host.GetAsicCount())
 	}
-	if got.GroupSize != 3 {
-		t.Errorf("group size = %d, want 3", got.GroupSize)
+	if got.Group.Name != "110-SC36_4x4_C1-10" || got.Group.Size != 3 {
+		t.Errorf("group = %+v, want {110-SC36_4x4_C1-10 3}", got.Group)
+	}
+	if got.Pod.Name != "bh_galaxy_sp_0" || got.Pod.Size != 2 {
+		t.Errorf("pod = %+v, want {bh_galaxy_sp_0 2}", got.Pod)
 	}
 	if got.Stale {
 		t.Error("fresh response marked stale")
@@ -191,5 +201,62 @@ func TestHostSummaryNoCacheReturnsError(t *testing.T) {
 
 	if _, err := c.HostSummary(context.Background(), "e01cs01"); err == nil {
 		t.Fatal("expected error with no cached response")
+	}
+}
+
+// Pods are optional: the fabric manager omits them when the hierarchy bottoms
+// out at the group, and a host can belong to a group but to no pod.
+func TestHostSummaryGroupWithoutPod(t *testing.T) {
+	resp := &orchpb.QueryTopologySummaryResponse{
+		Hosts: []*orchpb.HostSummary{{HostName: "e01cs09"}},
+		HostGroups: []*orchpb.HostGrouping{{
+			HostNames: []string{"e01cs09", "e01cs10"},
+			Name:      "110-SC36_4x4_C1-10",
+			Pods:      []*orchpb.HostGrouping{{Name: "pod-a", HostNames: []string{"e01cs10"}}},
+		}},
+	}
+	c := newTestClient(t, &fakeService{resp: resp})
+
+	got, err := c.HostSummary(context.Background(), "e01cs09")
+	if err != nil {
+		t.Fatalf("HostSummary: %v", err)
+	}
+	if got.Group.Size != 2 {
+		t.Errorf("group size = %d, want 2", got.Group.Size)
+	}
+	if got.Pod != (Grouping{}) {
+		t.Errorf("pod = %+v, want zero", got.Pod)
+	}
+}
+
+// Groups are unnamed when no member is described by an FSD.
+func TestHostSummaryUnnamedGroup(t *testing.T) {
+	resp := &orchpb.QueryTopologySummaryResponse{
+		Hosts:      []*orchpb.HostSummary{{HostName: "n150-01"}},
+		HostGroups: []*orchpb.HostGrouping{{HostNames: []string{"n150-01"}}},
+	}
+	c := newTestClient(t, &fakeService{resp: resp})
+
+	got, err := c.HostSummary(context.Background(), "n150-01")
+	if err != nil {
+		t.Fatalf("HostSummary: %v", err)
+	}
+	if got.Group.Name != "" || got.Group.Size != 1 {
+		t.Errorf("group = %+v, want {\"\" 1}", got.Group)
+	}
+}
+
+func TestHostSummaryNoGroups(t *testing.T) {
+	resp := &orchpb.QueryTopologySummaryResponse{
+		Hosts: []*orchpb.HostSummary{{HostName: "n150-01"}},
+	}
+	c := newTestClient(t, &fakeService{resp: resp})
+
+	got, err := c.HostSummary(context.Background(), "n150-01")
+	if err != nil {
+		t.Fatalf("HostSummary: %v", err)
+	}
+	if got.Group != (Grouping{}) || got.Pod != (Grouping{}) {
+		t.Errorf("group=%+v pod=%+v, want both zero", got.Group, got.Pod)
 	}
 }

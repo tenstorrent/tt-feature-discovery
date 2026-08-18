@@ -64,8 +64,21 @@ message HostSummary {
     HostMetadata metadata = 10;
 }
 
+// A connected group of hosts (a connected component over cross-host links),
+// optionally named after the FSD cabling hierarchy the members share.
 message HostGrouping {
     repeated string host_names = 1;
+    // Display name derived from the instance path common to the members, e.g.
+    // "110-SC36_4x4_C1-10". Empty when no member is described by an FSD or the
+    // members share no common instance path. May contain '/' separators, and a
+    // " (2)" suffix when two groups derive the same name.
+    string name = 2;
+    // The pods this group subdivides into, named relative to the group, e.g.
+    // "bh_galaxy_sp_0". A pod is the deepest instance path prefix that still
+    // covers more than one host. Empty when the members are not FSD-described
+    // or the hierarchy bottoms out at the group; a member in no pod appears
+    // only in host_names.
+    repeated HostGrouping pods = 3;
 }
 
 message QueryTopologySummaryResponse {

@@ -85,7 +85,8 @@ func TestRunOnceMergesFabricLabels(t *testing.T) {
 			Source:    orchpb.TopologySource_COMBINED_PSD_FSD,
 			Metadata:  &orchpb.HostMetadata{Hall: "AUS2", Rack: "12"},
 		},
-		GroupSize: 3,
+		Group: fabric.Grouping{Name: "110-SC36_4x4_C1-10", Size: 3},
+		Pod:   fabric.Grouping{Name: "bh_galaxy_sp_0", Size: 2},
 	}}
 	if err := runOnce(context.Background(), quietLogger(), cfg, fc); err != nil {
 		t.Fatalf("runOnce: %v", err)
@@ -97,7 +98,10 @@ func TestRunOnceMergesFabricLabels(t *testing.T) {
 		"tenstorrent.com/asic.arch":         "wormhole_b0",
 		"tenstorrent.com/datacenter.hall":   "aus2",
 		"tenstorrent.com/datacenter.rack":   "12",
+		"tenstorrent.com/fabric.group":      "110-sc36_4x4_c1-10",
 		"tenstorrent.com/fabric.group-size": "3",
+		"tenstorrent.com/fabric.pod":        "bh_galaxy_sp_0",
+		"tenstorrent.com/fabric.pod-size":   "2",
 		"tenstorrent.com/fabric.source":     "psd-fsd",
 	} {
 		if got[k] != want {
