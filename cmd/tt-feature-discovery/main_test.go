@@ -102,7 +102,7 @@ func TestRunOnceMergesFabricLabels(t *testing.T) {
 		"tenstorrent.com/datacenter.rack":   "12",
 		"tenstorrent.com/fabric.group":      "110-sc36_4x4_c1-10",
 		"tenstorrent.com/fabric.group-size": "3",
-		"tenstorrent.com/fabric.pod":        "bh_galaxy_sp_0",
+		"tenstorrent.com/fabric.pod":        "110-sc36_4x4_c1-10-bh_galaxy_sp_0",
 		"tenstorrent.com/fabric.pod-size":   "2",
 		"tenstorrent.com/fabric.source":     "psd-fsd",
 	} {

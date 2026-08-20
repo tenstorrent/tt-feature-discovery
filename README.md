@@ -41,7 +41,7 @@ projection of its answer rather than a second, independent FSD parser.
 | `tenstorrent.com/fabric.connected-hosts` | `2`         | Hosts reachable via this host's exit nodes |
 | `tenstorrent.com/fabric.group`         | `110-sc36_4x4_c1-10` | Name of this host's connectivity group |
 | `tenstorrent.com/fabric.group-size`    | `3`           | Hosts in this host's connectivity group  |
-| `tenstorrent.com/fabric.pod`           | `bh_galaxy_sp_0` | Name of this host's pod within the group |
+| `tenstorrent.com/fabric.pod`           | `sc36-blah-sc20_0-sc16_0-bh_glx_pod_2` | Path of this host's pod in the cabling hierarchy |
 | `tenstorrent.com/fabric.pod-size`      | `2`           | Hosts in this host's pod                 |
 | `tenstorrent.com/fabric.source`        | `psd-fsd`     | Which view the fabric manager had: `psd`, `fsd`, or `psd-fsd` |
 
@@ -50,9 +50,19 @@ the pods it subdivides into, come from the FSD cabling hierarchy: a pod is the
 deepest instance-path prefix that still covers more than one host. Both names
 are best-effort — the fabric manager leaves a group unnamed when no member is
 FSD-described, omits pods when the hierarchy bottoms out at the group, and a
-host can belong to a group but to no pod. Names carry `/` separators and an
-occasional ` (2)` disambiguating suffix, which are folded to `-` to fit the
-Kubernetes label value grammar.
+host can belong to a group but to no pod.
+
+The fabric manager names a pod *relative to its group*, so `fabric.pod` is the
+group path and the pod name joined: a bare leaf like `bh_glx_pod_2` repeats
+across groups and would collide. One segment is still missing from the front —
+the fabric manager drops the hierarchy's outermost (cluster) segment when
+naming a group that spans more than one segment, and the summary API exposes no
+raw instance path to recover it from.
+
+Names carry `/` separators and an occasional ` (2)` disambiguating suffix, both
+folded to `-` to fit the Kubernetes label value grammar. A path too long for
+the 63-character limit drops leading segments rather than trailing ones, since
+the deepest segments are what identify the pod.
 
 The query uses `COMBINED_PSD_FSD`, the only source carrying both live ASIC
 counts (PSD) and datacenter location (FSD). A cluster with no FSD loaded gets

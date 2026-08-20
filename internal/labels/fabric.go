@@ -70,15 +70,19 @@ func FromFabricSummary(s *fabric.Summary) map[string]string {
 	if hosts := s.Host.GetConnectedHosts(); len(hosts) > 0 {
 		out[LabelFabricConnectedHosts] = strconv.Itoa(len(hosts))
 	}
-	// Group and pod names come from the FSD cabling hierarchy, so they carry
-	// '/' separators and occasionally a " (2)" disambiguating suffix; the
-	// sanitizer folds both into '-'. A host in a group the fabric manager
-	// could not name still gets the size.
-	put(LabelFabricGroup, s.Group.Name)
+	// Group and pod names come from the FSD cabling hierarchy, so they are
+	// '/'-separated paths and occasionally carry a " (2)" disambiguating
+	// suffix. A host in a group the fabric manager could not name still gets
+	// the size.
+	if v := sanitizeInstancePath(s.Group.Name); v != "" {
+		out[LabelFabricGroup] = v
+	}
 	if s.Group.Size > 0 {
 		out[LabelFabricGroupSize] = strconv.Itoa(s.Group.Size)
 	}
-	put(LabelFabricPod, s.Pod.Name)
+	if v := sanitizeInstancePath(podPath(s.Group.Name, s.Pod.Name)); v != "" {
+		out[LabelFabricPod] = v
+	}
 	if s.Pod.Size > 0 {
 		out[LabelFabricPodSize] = strconv.Itoa(s.Pod.Size)
 	}
@@ -103,9 +107,67 @@ func sourceName(src orchpb.TopologySource) string {
 	}
 }
 
+// podPath qualifies a pod name with the group it subdivides. The fabric
+// manager names pods relative to their group, so a bare pod name such as
+// "bh_galaxy_sp_0" repeats across groups; joining the two yields the pod's
+// path within the cabling hierarchy.
+//
+// The result is still missing the hierarchy's outermost segment: the fabric
+// manager drops the cluster segment when deriving a group name spanning more
+// than one segment, and the summary API exposes no raw instance path to
+// recover it from.
+func podPath(group, pod string) string {
+	switch {
+	case pod == "":
+		return ""
+	case group == "":
+		return pod
+	default:
+		return group + "/" + pod
+	}
+}
+
+// sanitizeInstancePath renders a '/'-separated instance path as a label value.
+// Sanitization folds '/' into '-', so an over-long path cannot just be cut from
+// the right: that drops the deepest segments, which are the ones identifying
+// the pod, and can map two different pods onto the same value. Drop leading
+// (least specific) segments instead until the result fits.
+func sanitizeInstancePath(s string) string {
+	if s == "" {
+		return ""
+	}
+	segments := strings.Split(s, "/")
+	for i := range segments {
+		v := normalizeLabelValue(strings.ToLower(strings.Join(segments[i:], "/")))
+		if len(v) <= maxLabelValueLen {
+			return v
+		}
+	}
+	// A single segment longer than the limit leaves nothing to drop.
+	return sanitizeLabelValue(strings.ToLower(segments[len(segments)-1]))
+}
+
+// maxLabelValueLen is the Kubernetes limit on a label value.
+const maxLabelValueLen = 63
+
 // sanitizeLabelValue normalizes s into Kubernetes' label value grammar:
 // (([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?, up to 63 characters.
 func sanitizeLabelValue(s string) string {
+	return truncateLabelValue(normalizeLabelValue(s))
+}
+
+// truncateLabelValue caps v at the label value limit without leaving a
+// trailing non-alphanumeric character, which Kubernetes rejects.
+func truncateLabelValue(v string) string {
+	if len(v) <= maxLabelValueLen {
+		return v
+	}
+	return strings.TrimRightFunc(v[:maxLabelValueLen], func(r rune) bool { return !isAlphanum(r) })
+}
+
+// normalizeLabelValue applies the character rules without enforcing the length
+// limit, so callers assembling a value from parts can measure it first.
+func normalizeLabelValue(s string) string {
 	if s == "" {
 		return ""
 	}
@@ -123,11 +185,7 @@ func sanitizeLabelValue(s string) string {
 			prevDash = true
 		}
 	}
-	v := strings.TrimFunc(b.String(), func(r rune) bool { return !isAlphanum(r) })
-	if len(v) > 63 {
-		v = strings.TrimRightFunc(v[:63], func(r rune) bool { return !isAlphanum(r) })
-	}
-	return v
+	return strings.TrimFunc(b.String(), func(r rune) bool { return !isAlphanum(r) })
 }
 
 func isLabelValueChar(r rune) bool {

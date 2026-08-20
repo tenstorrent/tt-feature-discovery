@@ -1,6 +1,7 @@
 package labels
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/tenstorrent/tt-feature-discovery/internal/fabric"
@@ -33,7 +34,7 @@ func TestFromFabricSummaryFullRecord(t *testing.T) {
 		LabelFabricConnectedHosts: "2",
 		LabelFabricGroup:          "110-sc36_4x4_c1-10",
 		LabelFabricGroupSize:      "3",
-		LabelFabricPod:            "bh_galaxy_sp_0",
+		LabelFabricPod:            "110-sc36_4x4_c1-10-bh_galaxy_sp_0",
 		LabelFabricPodSize:        "2",
 		LabelFabricSource:         "psd-fsd",
 	}
@@ -140,7 +141,7 @@ func TestFromFabricSummaryGroupNameSanitized(t *testing.T) {
 	if got[LabelFabricGroup] != "110-sc36_4x4_c1-10-rack3-2" {
 		t.Errorf("group = %q", got[LabelFabricGroup])
 	}
-	if got[LabelFabricPod] != "bh_galaxy_sp_0-tray1" {
+	if got[LabelFabricPod] != "110-sc36_4x4_c1-10-rack3-2-bh_galaxy_sp_0-tray1" {
 		t.Errorf("pod = %q", got[LabelFabricPod])
 	}
 }
@@ -156,5 +157,59 @@ func TestFromFabricSummaryUnnamedGroup(t *testing.T) {
 	}
 	if got[LabelFabricGroupSize] != "1" {
 		t.Errorf("group size = %q, want 1", got[LabelFabricGroupSize])
+	}
+}
+
+// The pod label is the pod's path in the cabling hierarchy, not the leaf name:
+// the fabric manager names pods relative to their group, so leaves repeat
+// across groups and would collide.
+func TestFromFabricSummaryPodIsGroupQualified(t *testing.T) {
+	label := func(group, pod string) string {
+		return FromFabricSummary(&fabric.Summary{
+			Host:  &orchpb.HostSummary{HostName: "h"},
+			Group: fabric.Grouping{Name: group, Size: 4},
+			Pod:   fabric.Grouping{Name: pod, Size: 2},
+		})[LabelFabricPod]
+	}
+	a := label("sc36-blah/sc20_0", "sc16_0/bh_glx_pod_2")
+	b := label("sc36-blah/sc20_1", "sc16_0/bh_glx_pod_2")
+	if a == b {
+		t.Fatalf("pods in different groups share a label: %q", a)
+	}
+	if a != "sc36-blah-sc20_0-sc16_0-bh_glx_pod_2" {
+		t.Errorf("pod = %q", a)
+	}
+}
+
+// A pod with no group to qualify it still gets labelled.
+func TestFromFabricSummaryPodWithoutGroupName(t *testing.T) {
+	got := FromFabricSummary(&fabric.Summary{
+		Host: &orchpb.HostSummary{HostName: "h"},
+		Pod:  fabric.Grouping{Name: "bh_glx_pod_2", Size: 2},
+	})
+	if got[LabelFabricPod] != "bh_glx_pod_2" {
+		t.Errorf("pod = %q", got[LabelFabricPod])
+	}
+}
+
+// An over-long path keeps its deepest segments: those identify the pod, and
+// cutting from the right could map two pods onto one value.
+func TestSanitizeInstancePathKeepsDeepestSegments(t *testing.T) {
+	long := "cluster-with-a-very-long-name-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/sc20_0/bh_glx_pod_2"
+	got := sanitizeInstancePath(long)
+	if len(got) > 63 {
+		t.Fatalf("len = %d, want <= 63: %q", len(got), got)
+	}
+	if got != "sc20_0-bh_glx_pod_2" {
+		t.Errorf("got %q, want the trailing segments", got)
+	}
+}
+
+// Nothing to drop: a single over-long segment is hard-truncated, still legal.
+func TestSanitizeInstancePathSingleLongSegment(t *testing.T) {
+	seg := strings.Repeat("a", 80)
+	got := sanitizeInstancePath(seg)
+	if len(got) != 63 {
+		t.Errorf("len = %d, want 63", len(got))
 	}
 }
