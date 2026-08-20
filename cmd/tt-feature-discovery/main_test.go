@@ -30,10 +30,12 @@ func testConfig(t *testing.T) *config {
 	root := t.TempDir()
 	pci := filepath.Join(root, "pci")
 	dev := filepath.Join(pci, "0000:01:00.0")
-	if err := os.MkdirAll(dev, 0o755); err != nil {
+	// Owner-only: the test reads these fixtures back itself, so nothing needs
+	// group or world access.
+	if err := os.MkdirAll(dev, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dev, "vendor"), []byte("0x1e52\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dev, "vendor"), []byte("0x1e52\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return &config{
