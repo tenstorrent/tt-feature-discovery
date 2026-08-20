@@ -48,7 +48,7 @@ var productBySubsystemID = map[string]string{
 	"0x0044": "p300",
 	"0x0045": "p300",
 	"0x0046": "p300",
-	"0x0047": "ubb-blackhole",
+	"0x0047": "ubb_blackhole",
 }
 
 // Unclassified is the value used when a device is Tenstorrent's but its IDs

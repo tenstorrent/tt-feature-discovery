@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -191,5 +192,67 @@ func TestScanMissingSysfs(t *testing.T) {
 	}
 	if got.Count != 0 {
 		t.Errorf("count = %d, want 0", got.Count)
+	}
+}
+
+// A Wormhole Galaxy is one 32-ASIC baseboard where every ASIC has MMIO, so all
+// 32 show up as PCI endpoints reporting the same board UPI. It must read as a
+// homogeneous 32-endpoint host, not as mixed.
+func TestScanWormholeGalaxy(t *testing.T) {
+	root := t.TempDir()
+	// 4 trays x 8 ASICs. UMD derives the tray from bus & 0xf0 and the ASIC
+	// within it from bus & 0x0f.
+	for _, tray := range []int{0xc0, 0x80, 0x00, 0x40} {
+		for asic := 0; asic < 8; asic++ {
+			writeCard(t, root, fmt.Sprintf("0000:%02x:00.0", tray+asic), map[string]string{
+				"vendor": TenstorrentVendorID, "device": "0x401e", "subsystem_device": "0x0035",
+			})
+		}
+	}
+
+	got, err := Scan(root)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if got.Count != 32 {
+		t.Errorf("count = %d, want 32", got.Count)
+	}
+	if !reflect.DeepEqual(got.Products, []string{"ubb"}) {
+		t.Errorf("products = %v, want [ubb]", got.Products)
+	}
+	if got.Mixed() {
+		t.Error("a Galaxy baseboard must not read as mixed")
+	}
+}
+
+// Blackhole Galaxy: same shape, different family and UPI.
+func TestScanBlackholeGalaxy(t *testing.T) {
+	root := t.TempDir()
+	writeCard(t, root, "0000:01:00.0", map[string]string{
+		"vendor": TenstorrentVendorID, "device": "0xb140", "subsystem_device": "0x0047",
+	})
+	got, err := Scan(root)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if !reflect.DeepEqual(got.Families, []string{"blackhole"}) ||
+		!reflect.DeepEqual(got.Products, []string{"ubb_blackhole"}) {
+		t.Errorf("families=%v products=%v", got.Families, got.Products)
+	}
+}
+
+// The older single-ASIC galaxy board is a different product from a UBB, and
+// must not be conflated with one.
+func TestScanOlderGalaxyBoardIsNotUBB(t *testing.T) {
+	root := t.TempDir()
+	writeCard(t, root, "0000:01:00.0", map[string]string{
+		"vendor": TenstorrentVendorID, "device": "0x401e", "subsystem_device": "0x000b",
+	})
+	got, err := Scan(root)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if !reflect.DeepEqual(got.Products, []string{"galaxy"}) {
+		t.Errorf("products = %v, want [galaxy]", got.Products)
 	}
 }
