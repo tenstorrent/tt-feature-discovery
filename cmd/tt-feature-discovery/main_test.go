@@ -35,8 +35,16 @@ func testConfig(t *testing.T) *config {
 	if err := os.MkdirAll(dev, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dev, "vendor"), []byte("0x1e52\n"), 0o600); err != nil {
-		t.Fatal(err)
+	// Mirrors an N150 as it appears on a real host: Wormhole device ID with
+	// the N150 board UPI in subsystem_device.
+	for name, value := range map[string]string{
+		"vendor":           "0x1e52",
+		"device":           "0x401e",
+		"subsystem_device": "0x0018",
+	} {
+		if err := os.WriteFile(filepath.Join(dev, name), []byte(value+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return &config{
 		sysBusPCIDir: pci,
@@ -71,9 +79,32 @@ func TestRunOnceWithoutFabricClient(t *testing.T) {
 	if err := runOnce(context.Background(), quietLogger(), cfg, nil); err != nil {
 		t.Fatalf("runOnce: %v", err)
 	}
-	got := readFeatureFile(t, cfg.featureFile)
-	if len(got) != 1 || got[labelDevicePresent] != "true" {
-		t.Errorf("labels = %v, want only device.present", got)
+	assertPCIOnly(t, readFeatureFile(t, cfg.featureFile))
+}
+
+// assertPCIOnly checks the label set a host publishes with no fabric-manager
+// input: device.present plus the PCI-derived accelerator labels, and nothing
+// sourced from the fabric manager.
+func assertPCIOnly(t *testing.T, got map[string]string) {
+	t.Helper()
+	want := map[string]string{
+		labelDevicePresent:                    "true",
+		"tenstorrent.com/accelerator.count":   "1",
+		"tenstorrent.com/accelerator.family":  "wormhole",
+		"tenstorrent.com/accelerator.product": "n150",
+	}
+	if len(got) != len(want) {
+		t.Errorf("got %d labels, want %d: %v", len(got), len(want), got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %q, want %q", k, got[k], v)
+		}
+	}
+	for k := range got {
+		if strings.HasPrefix(k, "tenstorrent.com/fabric.") || strings.HasPrefix(k, "tenstorrent.com/datacenter.") {
+			t.Errorf("unexpected fabric-sourced label %s", k)
+		}
 	}
 }
 
@@ -95,16 +126,19 @@ func TestRunOnceMergesFabricLabels(t *testing.T) {
 	}
 	got := readFeatureFile(t, cfg.featureFile)
 	for k, want := range map[string]string{
-		labelDevicePresent:                  "true",
-		"tenstorrent.com/asic.count":        "8",
-		"tenstorrent.com/asic.arch":         "wormhole_b0",
-		"tenstorrent.com/datacenter.hall":   "aus2",
-		"tenstorrent.com/datacenter.rack":   "12",
-		"tenstorrent.com/fabric.group":      "110-sc36_4x4_c1-10",
-		"tenstorrent.com/fabric.group-size": "3",
-		"tenstorrent.com/fabric.pod":        "110-sc36_4x4_c1-10-bh_galaxy_sp_0",
-		"tenstorrent.com/fabric.pod-size":   "2",
-		"tenstorrent.com/fabric.source":     "psd-fsd",
+		labelDevicePresent:                    "true",
+		"tenstorrent.com/asic.count":          "8",
+		"tenstorrent.com/asic.arch":           "wormhole_b0",
+		"tenstorrent.com/datacenter.hall":     "aus2",
+		"tenstorrent.com/datacenter.rack":     "12",
+		"tenstorrent.com/fabric.group":        "110-sc36_4x4_c1-10",
+		"tenstorrent.com/fabric.group-size":   "3",
+		"tenstorrent.com/fabric.pod":          "110-sc36_4x4_c1-10-bh_galaxy_sp_0",
+		"tenstorrent.com/fabric.pod-size":     "2",
+		"tenstorrent.com/fabric.source":       "psd-fsd",
+		"tenstorrent.com/accelerator.count":   "1",
+		"tenstorrent.com/accelerator.family":  "wormhole",
+		"tenstorrent.com/accelerator.product": "n150",
 	} {
 		if got[k] != want {
 			t.Errorf("%s = %q, want %q", k, got[k], want)
@@ -119,13 +153,7 @@ func TestRunOnceSurvivesFabricError(t *testing.T) {
 	if err := runOnce(context.Background(), quietLogger(), cfg, fc); err != nil {
 		t.Fatalf("runOnce: %v", err)
 	}
-	got := readFeatureFile(t, cfg.featureFile)
-	if got[labelDevicePresent] != "true" {
-		t.Errorf("device.present missing: %v", got)
-	}
-	if len(got) != 1 {
-		t.Errorf("unexpected fabric labels on error: %v", got)
-	}
+	assertPCIOnly(t, readFeatureFile(t, cfg.featureFile))
 }
 
 func TestRunOnceHostNotKnownToFabric(t *testing.T) {
@@ -134,10 +162,7 @@ func TestRunOnceHostNotKnownToFabric(t *testing.T) {
 	if err := runOnce(context.Background(), quietLogger(), cfg, fc); err != nil {
 		t.Fatalf("runOnce: %v", err)
 	}
-	got := readFeatureFile(t, cfg.featureFile)
-	if len(got) != 1 || got[labelDevicePresent] != "true" {
-		t.Errorf("labels = %v, want only device.present", got)
-	}
+	assertPCIOnly(t, readFeatureFile(t, cfg.featureFile))
 }
 
 func TestParseFlagsDefaultsNodeNameToHostname(t *testing.T) {

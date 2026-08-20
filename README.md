@@ -22,6 +22,52 @@ Detection scans the PCI sysfs (`/sys/bus/pci/devices/*/vendor`) for the
 Tenstorrent vendor ID `0x1e52`. Nodes without a Tenstorrent device publish
 no `tenstorrent.com/*` labels.
 
+Two more sysfs attributes say what the cards are:
+
+| Label                                 | Example      | Meaning                            |
+| ------------------------------------- | ------------ | ---------------------------------- |
+| `tenstorrent.com/accelerator.count`   | `8`          | Tenstorrent PCI endpoints on the host |
+| `tenstorrent.com/accelerator.family`  | `wormhole`   | ASIC generation, from the PCI device ID |
+| `tenstorrent.com/accelerator.product` | `n150`       | Board type, from the board UPI in `subsystem_device` |
+
+`device` gives the generation (`0x401e` Wormhole, `0xb140` Blackhole) and
+`subsystem_device` carries the board's UPI code — the same value UMD looks up
+in `board_upi_map`, and what it reads off PCI to recognise a Wormhole UBB.
+Known products: `n150`, `n300`, `galaxy`, `ubb`, `p100`, `p150`, `p300`,
+`ubb-blackhole`.
+
+This classification is local: no ioctl, no UMD, no driver and no fabric
+manager, so a node is classifiable before anything Tenstorrent-specific is
+installed on it. A card whose IDs this build does not recognise is still
+counted and labelled `unknown`, rather than dropped or guessed at.
+
+`accelerator.count` counts PCI endpoints, which is not always the ASIC count:
+where only one ASIC on a board is PCIe-attached (N300) or many sit behind
+fewer endpoints (Galaxy/UBB), the fabric manager's `asic.count` is higher.
+
+### Mixed hosts
+
+Tenstorrent systems are homogeneous in practice, but a host with two card
+types cannot be described by one family or product. Rather than pick a winner
+— which would let a `family=wormhole` selector place a Wormhole-only workload
+on a node that is half Blackhole — the scalar label becomes `mixed` and the
+full sorted set is published beside it:
+
+```
+tenstorrent.com/accelerator.count=2
+tenstorrent.com/accelerator.family=mixed
+tenstorrent.com/accelerator.families=blackhole.wormhole
+tenstorrent.com/accelerator.product=mixed
+tenstorrent.com/accelerator.products=n150.p150
+```
+
+So the safe case is the default: a selector for a specific family does not
+match a mixed node. The two axes are independent — a host of N150s and N300s
+keeps `family=wormhole` and goes mixed only on `product`. Values are joined
+with `.` because `,` is not a legal label value character. Anything needing
+per-device placement should go through DRA, which resolves devices
+individually, rather than through node labels.
+
 ### From tt-fabric-manager
 
 Set `--fabric-manager-address` to enable these. tt-feature-discovery calls
