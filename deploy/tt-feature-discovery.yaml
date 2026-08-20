@@ -4,6 +4,10 @@
 # node-feature-discovery's local feature-file source. NFD must already be
 # installed in the cluster (the tt-operator umbrella chart installs it).
 #
+# ASIC and datacenter-location labels come from tt-fabric-manager. Point
+# --fabric-manager-address at the controller's gRPC service to enable them;
+# without it only tenstorrent.com/device.present is published.
+#
 # Mounts:
 #   /sys/bus/pci   read-only host PCI sysfs (used to detect Tenstorrent devices)
 #   /etc/kubernetes/node-feature-discovery/features.d
@@ -51,6 +55,14 @@ spec:
             - --sys-bus-pci-dir=/host-sys/bus/pci/devices
             - --feature-file=/etc/kubernetes/node-feature-discovery/features.d/tt-fd
             - --interval=60s
+            - --fabric-manager-address=tt-fabric-manager-controller.tt-operator-system.svc.cluster.local:50052
+          env:
+            # The fabric manager keys hosts on the agent's gethostname(), which
+            # matches the Kubernetes node name on bare-metal clusters.
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
