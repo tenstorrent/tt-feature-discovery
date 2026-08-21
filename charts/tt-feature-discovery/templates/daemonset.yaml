@@ -1,0 +1,106 @@
+{{- /*
+Per-node DaemonSet. Publishes tenstorrent.com/* labels by writing an NFD
+local-source feature file; the node-feature-discovery worker on the same
+node turns it into node labels. No API access, so no ServiceAccount and no
+mounted token.
+*/}}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "tt-feature-discovery.fullname" . }}
+  labels:
+    {{- include "tt-feature-discovery.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "tt-feature-discovery.selectorLabels" . | nindent 6 }}
+  updateStrategy:
+    {{- toYaml .Values.updateStrategy | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        {{- include "tt-feature-discovery.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      hostPID: false
+      hostNetwork: false
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: tt-feature-discovery
+          image: {{ include "tt-feature-discovery.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --sys-bus-pci-dir=/host-sys/bus/pci/devices
+            - --feature-file={{ .Values.hostPaths.nfdFeaturesDir }}/tt-fd
+            - --interval={{ .Values.interval }}
+            - --log-level={{ .Values.logLevel }}
+            {{- with .Values.fabricManager.address }}
+            - --fabric-manager-address={{ . }}
+            - --fabric-cache-ttl={{ $.Values.fabricManager.cacheTTL }}
+            - --fabric-max-stale={{ $.Values.fabricManager.maxStale }}
+            {{- end }}
+            {{- with .Values.extraArgs }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          env:
+            # The fabric manager keys hosts on the agent's gethostname(),
+            # which matches the Kubernetes node name on bare metal.
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: host-sys
+              mountPath: /host-sys
+              readOnly: true
+            - name: nfd-features
+              mountPath: {{ .Values.hostPaths.nfdFeaturesDir }}
+      volumes:
+        - name: host-sys
+          hostPath:
+            path: {{ .Values.hostPaths.sys }}
+            type: Directory
+        - name: nfd-features
+          hostPath:
+            path: {{ .Values.hostPaths.nfdFeaturesDir }}
+            type: DirectoryOrCreate

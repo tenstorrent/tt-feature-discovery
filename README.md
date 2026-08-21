@@ -190,9 +190,17 @@ case-insensitive comparison of the leading DNS label.
 
 ## Install
 
+Packaged as a Helm chart under [`charts/tt-feature-discovery`](./charts/tt-feature-discovery),
+published to `oci://ghcr.io/tenstorrent/helm`:
+
 ```bash
-kubectl apply -f deploy/tt-feature-discovery.yaml
+helm install tt-feature-discovery oci://ghcr.io/tenstorrent/helm/tt-feature-discovery \
+  --namespace tt-feature-discovery --create-namespace
 ```
+
+Add `--set fabricManager.address=<host:port>` to enable the fabric-derived
+labels. The chart's [values reference](./charts/tt-feature-discovery/README.md)
+lists every setting.
 
 Verify on a node with Tenstorrent hardware:
 
