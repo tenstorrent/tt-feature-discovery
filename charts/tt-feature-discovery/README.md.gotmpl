@@ -1,0 +1,34 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.badgesSection" . }}
+
+## Install
+
+```bash
+helm install tt-feature-discovery oci://ghcr.io/tenstorrent/helm/tt-feature-discovery \
+  --namespace tt-feature-discovery --create-namespace
+```
+
+Requires node-feature-discovery in the cluster with its `local` feature
+source enabled (the default). The [tt-operator][tt-operator] umbrella chart
+installs NFD with the right config.
+
+To enable the fabric-derived labels, point the chart at tt-fabric-manager's
+controller:
+
+```bash
+helm install tt-feature-discovery oci://ghcr.io/tenstorrent/helm/tt-feature-discovery \
+  --namespace tt-feature-discovery --create-namespace \
+  --set fabricManager.address=tt-fabric-manager-controller.tt-operator-system.svc.cluster.local:50052
+```
+
+See the [repository README][repo] for the full label reference.
+
+[tt-operator]: https://github.com/tenstorrent/tt-operator
+[repo]: https://github.com/tenstorrent/tt-feature-discovery
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}

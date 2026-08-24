@@ -1,0 +1,84 @@
+name: Release Helm Chart
+
+# Publishes the tt-feature-discovery chart to oci://ghcr.io/tenstorrent/helm
+# so tt-operator can pick it up as a subchart dependency.
+#
+# Versioning model, shared with the sibling CNS charts:
+#
+# - Chart.yaml carries `version: 0.0.0` + `appVersion: latest` as permanent
+#   sentinels — never bumped manually.
+# - .github/actions/version computes the real version per run from the
+#   latest `v*.*.*` tag + commit distance + sha, so the chart and the image
+#   built from the same commit agree on a version string.
+# - At publish time the sentinels are sed-replaced before packaging.
+
+on:
+  pull_request:
+    paths:
+      - charts/**
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      # The sentinels lint clean: 0.0.0 is valid semver and "latest" is an
+      # allowed appVersion, so no sed is needed here.
+      - name: Lint
+        run: helm lint charts/tt-feature-discovery
+      # Rendering both paths catches a template that only breaks once the
+      # fabric-manager block is switched on.
+      - name: Template (defaults)
+        run: helm template tt-feature-discovery charts/tt-feature-discovery > /dev/null
+      - name: Template (fabric manager enabled)
+        run: |
+          helm template tt-feature-discovery charts/tt-feature-discovery \
+            --set fabricManager.address=tt-fabric-manager-controller.tt-operator-system.svc.cluster.local:50052 \
+            > /dev/null
+
+  publish:
+    needs: lint
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      - name: Compute version
+        id: version
+        uses: ./.github/actions/version
+
+      - name: Stamp computed version into Chart.yaml
+        # appVersion is stamped with the SAME value as version, which is what
+        # makes the chart's `image.tag | default .Chart.AppVersion` render to
+        # the tag the image workflow pushed for this commit.
+        run: |
+          sed -i "s/^version: 0\.0\.0$/version: ${{ steps.version.outputs.version }}/" \
+            charts/tt-feature-discovery/Chart.yaml
+          sed -i "s/^appVersion: latest$/appVersion: ${{ steps.version.outputs.version }}/" \
+            charts/tt-feature-discovery/Chart.yaml
+          echo "Stamped:"
+          grep -E "^version:|^appVersion:" charts/tt-feature-discovery/Chart.yaml
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Package and push
+        run: |
+          helm package charts/tt-feature-discovery --destination /tmp/helm-packages
+          helm push \
+            /tmp/helm-packages/tt-feature-discovery-${{ steps.version.outputs.version }}.tgz \
+            oci://ghcr.io/${{ github.repository_owner }}/helm
