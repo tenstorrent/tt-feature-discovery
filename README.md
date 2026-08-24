@@ -22,6 +22,97 @@ Detection scans the PCI sysfs (`/sys/bus/pci/devices/*/vendor`) for the
 Tenstorrent vendor ID `0x1e52`. Nodes without a Tenstorrent device publish
 no `tenstorrent.com/*` labels.
 
+Two more sysfs attributes say what the cards are:
+
+| Label                                 | Example      | Meaning                            |
+| ------------------------------------- | ------------ | ---------------------------------- |
+| `tenstorrent.com/accelerator.count`   | `8`          | Tenstorrent PCI endpoints on the host |
+| `tenstorrent.com/accelerator.family`  | `wormhole`   | ASIC generation, from the PCI device ID |
+| `tenstorrent.com/accelerator.product` | `n150`       | Board type, from the board UPI in `subsystem_device` |
+
+`device` gives the generation (`0x401e` Wormhole, `0xb140` Blackhole) and
+`subsystem_device` carries the board's UPI code — the same value UMD looks up
+in `board_upi_map`, and what it reads off PCI to recognise a Wormhole UBB.
+Known products: `n150`, `n300`, `galaxy`, `ubb`, `p100`, `p150`, `p300`,
+`ubb_blackhole`.
+
+This classification is local: no ioctl, no UMD, no driver and no fabric
+manager, so a node is classifiable before anything Tenstorrent-specific is
+installed on it. A card whose IDs this build does not recognise is still
+counted and labelled `unknown`, rather than dropped or guessed at.
+
+`accelerator.count` counts PCI endpoints, which is not always the ASIC count.
+On an N300 only one of the two ASICs is PCIe-attached, so the fabric manager's
+`asic.count` is higher. On a UBB Galaxy every ASIC has MMIO, so the two agree
+at 32 — see below.
+
+### Galaxy systems
+
+Galaxy needs spelling out, because three different products carry the name and
+`accelerator.count` means something different on each.
+
+| Label value      | UPI      | System                | ASICs | PCI endpoints |
+| ---------------- | -------- | --------------------- | ----- | ------------- |
+| `ubb`            | `0x0035` | Wormhole Galaxy       | 32    | 32            |
+| `ubb_blackhole`  | `0x0047` | Blackhole Galaxy      | 32    | 32            |
+| `galaxy`         | `0x000b` | Older Galaxy module    | 1 per board | 1 per MMIO board |
+
+A **UBB Galaxy** (`ubb` / `ubb_blackhole`) is one 32-ASIC universal baseboard
+built as 4 trays of 8. Every ASIC has MMIO, so all 32 appear as separate PCI
+endpoints and a Galaxy host publishes:
+
+```
+tenstorrent.com/accelerator.count=32
+tenstorrent.com/accelerator.family=wormhole
+tenstorrent.com/accelerator.product=ubb
+```
+
+So `count=32` here is one physical baseboard with 32 endpoints, not 32 cards —
+whereas `count=8` on a host of N150s really is 8 separate cards. The label
+names the board type, and every endpoint on the baseboard reports the same
+`subsystem_device`, which is why a Galaxy reads as homogeneous rather than
+mixed. On a UBB, `accelerator.count` and the fabric manager's `asic.count`
+agree; a disagreement there is worth investigating.
+
+`galaxy` (`0x000b`) is the older, unrelated thing: a single-ASIC board, where a
+shelf reaches the host through its closest MMIO chip and the rest are remote
+over Ethernet. On those, most ASICs are not PCIe-visible at all, so
+`accelerator.count` sits well below `asic.count`. **`product=galaxy` does not
+mean "a Galaxy system"** — a Galaxy system is `ubb`.
+
+Which tray an endpoint sits in is encoded in its PCI bus ID (UMD's
+`get_ubb_id` masks `bus & 0xf0` against a per-architecture tray table, and
+`bus & 0x0f` gives the ASIC within the tray). Wormhole and Blackhole use
+different tray orderings — the same rev-A/B versus rev-C layout the fabric
+manager reports as `is_bh_glx_rev_c`. Trays are not labelled here: a tray is a
+sub-node detail, and per-device placement belongs in DRA.
+
+Product names match UMD's `board_type_name_map` verbatim, so a label value can
+be compared directly against `tt-smi` or cluster-descriptor output.
+
+### Mixed hosts
+
+Tenstorrent systems are homogeneous in practice, but a host with two card
+types cannot be described by one family or product. Rather than pick a winner
+— which would let a `family=wormhole` selector place a Wormhole-only workload
+on a node that is half Blackhole — the scalar label becomes `mixed` and the
+full sorted set is published beside it:
+
+```
+tenstorrent.com/accelerator.count=2
+tenstorrent.com/accelerator.family=mixed
+tenstorrent.com/accelerator.families=blackhole.wormhole
+tenstorrent.com/accelerator.product=mixed
+tenstorrent.com/accelerator.products=n150.p150
+```
+
+So the safe case is the default: a selector for a specific family does not
+match a mixed node. The two axes are independent — a host of N150s and N300s
+keeps `family=wormhole` and goes mixed only on `product`. Values are joined
+with `.` because `,` is not a legal label value character. Anything needing
+per-device placement should go through DRA, which resolves devices
+individually, rather than through node labels.
+
 ### From tt-fabric-manager
 
 Set `--fabric-manager-address` to enable these. tt-feature-discovery calls
@@ -99,9 +190,17 @@ case-insensitive comparison of the leading DNS label.
 
 ## Install
 
+Packaged as a Helm chart under [`charts/tt-feature-discovery`](./charts/tt-feature-discovery),
+published to `oci://ghcr.io/tenstorrent/helm`:
+
 ```bash
-kubectl apply -f deploy/tt-feature-discovery.yaml
+helm install tt-feature-discovery oci://ghcr.io/tenstorrent/helm/tt-feature-discovery \
+  --namespace tt-feature-discovery --create-namespace
 ```
+
+Add `--set fabricManager.address=<host:port>` to enable the fabric-derived
+labels. The chart's [values reference](./charts/tt-feature-discovery/README.md)
+lists every setting.
 
 Verify on a node with Tenstorrent hardware:
 

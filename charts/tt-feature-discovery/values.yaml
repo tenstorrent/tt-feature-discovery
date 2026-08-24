@@ -1,0 +1,128 @@
+# tt-feature-discovery chart values.
+#
+# This chart does NOT bundle node-feature-discovery. NFD must already be
+# running with its `local` feature source enabled (the default) — the
+# tt-operator umbrella chart installs it. tt-feature-discovery publishes
+# labels by writing a feature file into NFD's features.d directory on each
+# node, so it never talks to the API server and needs no ServiceAccount.
+#
+# NFD prefixes locally-sourced labels with `feature.node.kubernetes.io/`.
+# To get them on a bare `tenstorrent.com/` prefix, enable the
+# `tenstorrent.com` extra label namespace in NFD's master config.
+#
+# Accelerator labels (family, product, count) come from PCI sysfs and need
+# nothing installed on the host. Fabric labels (ASIC counts, datacenter
+# location, fabric group/pod) additionally require tt-fabric-manager with
+# its agent registered for the node; set fabricManager.address to enable
+# them.
+
+# -- Container image for the DaemonSet.
+image:
+  # -- Image repository.
+  repository: ghcr.io/tenstorrent/tt-feature-discovery
+  # -- Image tag; falls back to .Chart.AppVersion when empty.
+  tag: ""
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for the DaemonSet pods. Leave empty for public
+# images or when GHCR creds are injected via a namespace-default
+# ServiceAccount.
+imagePullSecrets: []
+
+# -- Override the chart name used in resource names and labels.
+nameOverride: ""
+# -- Override the fully-qualified release name. The tt-operator umbrella
+# sets this so resources render as `tt-feature-discovery` rather than
+# `tt-operator-tt-feature-discovery`.
+fullnameOverride: ""
+
+# -- Interval between detection passes.
+interval: 60s
+
+# -- Log level: debug, info, warn, error.
+logLevel: info
+
+# -- tt-fabric-manager integration. Fabric-derived labels are opt-in and
+# never block the PCI-derived ones: with no address set, or on a node the
+# fabric manager does not know about, the accelerator and device.present
+# labels are still published.
+fabricManager:
+  # -- Controller gRPC address (host:port). Empty disables fabric labels.
+  # The umbrella chart's TTFM renders its controller Service as
+  # `tt-fabric-manager-controller` on port 50052.
+  address: ""
+  # -- Minimum interval between fabric-manager queries.
+  cacheTTL: 5m
+  # -- How long the last known fabric labels keep being published while
+  # the fabric manager is unreachable. Bounded so a decommissioned host
+  # eventually stops being labelled, but long enough that a controller
+  # restart does not strip every node.
+  maxStale: 30m
+
+# -- Host paths the DaemonSet mounts.
+hostPaths:
+  # -- Host /sys, mounted read-only; the PCI bus is scanned under it.
+  sys: /sys
+  # -- NFD's local-source feature directory. Must match the path NFD's
+  # worker reads on this node.
+  nfdFeaturesDir: /etc/kubernetes/node-feature-discovery/features.d
+
+# -- Node selector for the DaemonSet. Runs on every Linux node by default:
+# a node with no Tenstorrent device publishes no tenstorrent.com/* labels,
+# which is also how NFD removes a stale label from a node that lost its
+# hardware.
+nodeSelector:
+  kubernetes.io/os: linux
+
+# -- Tolerations. Tolerates everything by default so tainted accelerator
+# nodes still get labelled.
+tolerations:
+  - operator: Exists
+
+# -- Affinity rules for the DaemonSet.
+affinity: {}
+
+# -- Priority class. Node labels gate scheduling for everything else on the
+# node, so this defaults to a system-node-critical class.
+priorityClassName: system-node-critical
+
+# -- Resource requests and limits.
+resources:
+  requests:
+    cpu: 10m
+    memory: 16Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
+# -- Pod-level annotations.
+podAnnotations: {}
+# -- Pod-level extra labels.
+podLabels: {}
+
+# -- Pod security context.
+podSecurityContext: {}
+
+# -- Container security context. Unprivileged: the process only reads PCI
+# sysfs and writes one file into NFD's features.d directory.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- DaemonSet update strategy.
+updateStrategy:
+  type: RollingUpdate
+
+# -- Extra CLI args appended to the container command.
+extraArgs: []
+
+# -- Extra environment variables.
+extraEnv: []
