@@ -15,7 +15,7 @@ name: Release Helm Chart
 on:
   pull_request:
     paths:
-      - charts/**
+      - helm/**
   push:
     branches:
       - main
@@ -36,14 +36,14 @@ jobs:
       # The sentinels lint clean: 0.0.0 is valid semver and "latest" is an
       # allowed appVersion, so no sed is needed here.
       - name: Lint
-        run: helm lint charts/tt-feature-discovery
+        run: helm lint helm/tt-feature-discovery
       # Rendering both paths catches a template that only breaks once the
       # fabric-manager block is switched on.
       - name: Template (defaults)
-        run: helm template tt-feature-discovery charts/tt-feature-discovery > /dev/null
+        run: helm template tt-feature-discovery helm/tt-feature-discovery > /dev/null
       - name: Template (fabric manager enabled)
         run: |
-          helm template tt-feature-discovery charts/tt-feature-discovery \
+          helm template tt-feature-discovery helm/tt-feature-discovery \
             --set fabricManager.address=tt-fabric-manager-controller.tt-operator-system.svc.cluster.local:50052 \
             > /dev/null
 
@@ -65,11 +65,11 @@ jobs:
         # the tag the image workflow pushed for this commit.
         run: |
           sed -i "s/^version: 0\.0\.0$/version: ${{ steps.version.outputs.version }}/" \
-            charts/tt-feature-discovery/Chart.yaml
+            helm/tt-feature-discovery/Chart.yaml
           sed -i "s/^appVersion: latest$/appVersion: ${{ steps.version.outputs.version }}/" \
-            charts/tt-feature-discovery/Chart.yaml
+            helm/tt-feature-discovery/Chart.yaml
           echo "Stamped:"
-          grep -E "^version:|^appVersion:" charts/tt-feature-discovery/Chart.yaml
+          grep -E "^version:|^appVersion:" helm/tt-feature-discovery/Chart.yaml
 
       - name: Log in to GHCR
         run: |
@@ -78,7 +78,7 @@ jobs:
 
       - name: Package and push
         run: |
-          helm package charts/tt-feature-discovery --destination /tmp/helm-packages
+          helm package helm/tt-feature-discovery --destination /tmp/helm-packages
           helm push \
             /tmp/helm-packages/tt-feature-discovery-${{ steps.version.outputs.version }}.tgz \
             oci://ghcr.io/${{ github.repository_owner }}/helm
