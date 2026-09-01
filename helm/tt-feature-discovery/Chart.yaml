@@ -1,0 +1,24 @@
+apiVersion: v2
+name: tt-feature-discovery
+description: Publishes Kubernetes node labels describing a node's Tenstorrent hardware — accelerator family, board product and count from PCI sysfs, plus ASIC and datacenter-location labels from tt-fabric-manager — via node-feature-discovery's local feature-file source.
+type: application
+# Sentinel placeholders, never bumped by hand. .github/actions/version
+# computes the real version per run and helm-release.yaml seds it in
+# before packaging. Keeping 0.0.0 in source means a stray local
+# `helm package` can't land in a real release lane.
+version: 0.0.0
+appVersion: latest
+kubeVersion: ">=1.27.0-0"
+home: https://github.com/tenstorrent/tt-feature-discovery
+sources:
+  - https://github.com/tenstorrent/tt-feature-discovery
+icon: https://raw.githubusercontent.com/tenstorrent/tt-metal/main/docs/source/common/_static/favicon.png
+keywords:
+  - tenstorrent
+  - accelerator
+  - npu
+  - node-feature-discovery
+  - labels
+maintainers:
+  - name: Tenstorrent
+    url: https://github.com/tenstorrent

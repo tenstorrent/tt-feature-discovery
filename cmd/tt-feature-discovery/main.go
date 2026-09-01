@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -107,14 +108,24 @@ type fabricLabeler interface {
 }
 
 func runOnce(ctx context.Context, log *slog.Logger, cfg *config, fc fabricLabeler) error {
-	present, err := detect.DevicePresent(cfg.sysBusPCIDir)
+	accel, err := detect.Scan(cfg.sysBusPCIDir)
 	if err != nil {
 		return fmt.Errorf("detect: %w", err)
 	}
+	present := accel.Count > 0
 
 	out := map[string]string{}
 	if present {
 		out[labelDevicePresent] = "true"
+	}
+	for k, v := range labels.FromAccelerators(accel) {
+		out[k] = v
+	}
+	if accel.Mixed() {
+		log.Warn("host holds more than one kind of accelerator; publishing mixed",
+			slog.Any("families", accel.Families),
+			slog.Any("products", accel.Products),
+		)
 	}
 
 	fabricLabels := 0
@@ -132,6 +143,7 @@ func runOnce(ctx context.Context, log *slog.Logger, cfg *config, fc fabricLabele
 			log.Warn("fabric-manager query failed; publishing without fabric labels",
 				slog.Any("err", err))
 		default:
+			warnArchMismatch(log, accel, summary.Host.GetArch())
 			fl := labels.FromFabricSummary(summary)
 			fabricLabels = len(fl)
 			for k, v := range fl {
@@ -149,10 +161,29 @@ func runOnce(ctx context.Context, log *slog.Logger, cfg *config, fc fabricLabele
 	log.Info("reconciled",
 		slog.String("feature_file", cfg.featureFile),
 		slog.Bool("device_present", present),
+		slog.Int("accelerator_count", accel.Count),
 		slog.Int("label_count", len(out)),
 		slog.Int("fabric_label_count", fabricLabels),
 	)
 	return nil
+}
+
+// warnArchMismatch flags a host whose PCI-derived family disagrees with the
+// arch the fabric manager reports. The two are read from different places —
+// the local bus versus the FSD or live discovery — so a disagreement usually
+// means the node is described by the wrong FSD entry.
+func warnArchMismatch(log *slog.Logger, accel detect.Accelerators, arch string) {
+	if arch == "" || len(accel.Families) != 1 {
+		return
+	}
+	family := accel.Families[0]
+	if family == detect.Unclassified || strings.HasPrefix(strings.ToLower(arch), family) {
+		return
+	}
+	log.Warn("fabric-manager arch disagrees with the PCI-derived family",
+		slog.String("pci_family", family),
+		slog.String("fabric_arch", arch),
+	)
 }
 
 func run(ctx context.Context, log *slog.Logger, cfg *config, fc fabricLabeler) error {
