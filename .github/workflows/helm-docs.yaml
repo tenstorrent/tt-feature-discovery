@@ -1,6 +1,6 @@
 name: helm-docs
 
-# Fails if charts/*/README.md is out of date with values.yaml, so the values
+# Fails if helm/*/README.md is out of date with values.yaml, so the values
 # table cannot drift from the values it documents.
 
 on:
@@ -22,6 +22,6 @@ jobs:
           sudo install -m 0755 /tmp/helm-docs /usr/local/bin/helm-docs
       - name: Regenerate docs and diff
         run: |
-          helm-docs --chart-search-root=charts
-          git diff --exit-code -- charts/ \
-            || (echo "::error::chart README out of date — run 'helm-docs --chart-search-root=charts' and commit"; exit 1)
+          helm-docs --chart-search-root=helm
+          git diff --exit-code -- helm/ \
+            || (echo "::error::chart README out of date — run 'helm-docs --chart-search-root=helm' and commit"; exit 1)

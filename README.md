@@ -190,7 +190,7 @@ case-insensitive comparison of the leading DNS label.
 
 ## Install
 
-Packaged as a Helm chart under [`charts/tt-feature-discovery`](./charts/tt-feature-discovery),
+Packaged as a Helm chart under [`helm/tt-feature-discovery`](./helm/tt-feature-discovery),
 published to `oci://ghcr.io/tenstorrent/helm`:
 
 ```bash
@@ -199,7 +199,7 @@ helm install tt-feature-discovery oci://ghcr.io/tenstorrent/helm/tt-feature-disc
 ```
 
 Add `--set fabricManager.address=<host:port>` to enable the fabric-derived
-labels. The chart's [values reference](./charts/tt-feature-discovery/README.md)
+labels. The chart's [values reference](./helm/tt-feature-discovery/README.md)
 lists every setting.
 
 Verify on a node with Tenstorrent hardware:
