@@ -104,14 +104,17 @@ podLabels: {}
 # -- Pod security context.
 podSecurityContext: {}
 
-# -- Container security context. Unprivileged: the process only reads PCI
-# sysfs and writes one file into NFD's features.d directory.
+# -- Container security context. Runs as root: the process writes a feature
+# file into NFD's features.d directory, which the NFD install owns as
+# root:0755, so a non-root uid cannot write there (and an added
+# CAP_DAC_OVERRIDE is not effective for a non-root user without ambient
+# caps, which this cannot set). Otherwise locked down: read-only root
+# filesystem, all capabilities dropped, seccomp RuntimeDefault.
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 65532
-  runAsGroup: 65532
+  runAsUser: 0
+  runAsGroup: 0
   capabilities:
     drop: ["ALL"]
   seccompProfile:
