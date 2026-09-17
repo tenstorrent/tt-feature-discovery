@@ -24,6 +24,15 @@ func Write(path string, labels map[string]string) error {
 	body := render(labels)
 
 	if existing, err := os.ReadFile(path); err == nil && string(existing) == body {
+		// Content unchanged. An older build (or os.CreateTemp's 0600 default)
+		// may have left the file unreadable by the non-root NFD worker, so fix
+		// the mode if needed. chmod changes only ctime, not mtime, so this
+		// fires at most one extra NFD reconcile and then stays a true no-op.
+		if info, statErr := os.Stat(path); statErr == nil && info.Mode().Perm()&0o044 != 0o044 {
+			if err := os.Chmod(path, 0o644); err != nil {
+				return fmt.Errorf("chmod %s: %w", path, err)
+			}
+		}
 		return nil
 	}
 
@@ -42,6 +51,15 @@ func Write(path string, labels map[string]string) error {
 		_ = tmp.Close()
 		cleanup()
 		return fmt.Errorf("write temp file: %w", err)
+	}
+	// os.CreateTemp makes the file 0600. This process runs as root (it must, to
+	// write into NFD's root-owned features.d), but the NFD worker that reads the
+	// file runs as a non-root user and cannot read 0600 — it then silently skips
+	// the file and publishes no labels. Make it world-readable.
+	if err := tmp.Chmod(0o644); err != nil {
+		_ = tmp.Close()
+		cleanup()
+		return fmt.Errorf("chmod temp file: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		cleanup()
