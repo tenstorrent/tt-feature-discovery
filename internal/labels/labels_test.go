@@ -24,6 +24,16 @@ func TestWrite(t *testing.T) {
 	if string(got) != want {
 		t.Errorf("body = %q, want %q", got, want)
 	}
+
+	// The non-root NFD worker must be able to read the file, so it has to be
+	// world-readable rather than the 0600 os.CreateTemp defaults to.
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm&0o044 != 0o044 {
+		t.Errorf("file mode = %o, want group- and world-readable", perm)
+	}
 }
 
 func TestWriteDeterministicOrder(t *testing.T) {
@@ -79,5 +89,31 @@ func TestWriteIsNoopWhenUnchanged(t *testing.T) {
 	}
 	if !stat1.ModTime().Equal(stat2.ModTime()) {
 		t.Errorf("mtime changed on no-op write: %v -> %v", stat1.ModTime(), stat2.ModTime())
+	}
+}
+
+func TestWriteFixesModeWhenContentUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tt-fd")
+	labels := map[string]string{"tenstorrent.com/device.present": "true"}
+
+	if err := Write(path, labels); err != nil {
+		t.Fatalf("first Write: %v", err)
+	}
+	// Simulate a file left behind by an older build that wrote it 0600.
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Same content: the no-op path must still repair the mode.
+	if err := Write(path, labels); err != nil {
+		t.Fatalf("second Write: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm&0o044 != 0o044 {
+		t.Errorf("file mode = %o, want group- and world-readable", perm)
 	}
 }
