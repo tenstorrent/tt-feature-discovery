@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 # tt-feature-discovery chart values.
 #
 # This chart does NOT bundle node-feature-discovery. NFD must already be

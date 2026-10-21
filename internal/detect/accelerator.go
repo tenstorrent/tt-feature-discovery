@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+
 // Accelerator classification from PCI sysfs.
 //
 // Two sysfs attributes are enough to say what a Tenstorrent card is:

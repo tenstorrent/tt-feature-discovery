@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 apiVersion: v2
 name: tt-feature-discovery
 description: Publishes Kubernetes node labels describing a node's Tenstorrent hardware — accelerator family, board product and count from PCI sysfs, plus ASIC and datacenter-location labels from tt-fabric-manager — via node-feature-discovery's local feature-file source.

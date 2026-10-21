@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+
 // Accelerator label generation.
 //
 // Mixed hosts: Tenstorrent systems are homogeneous in practice, but a node

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+
 // tt-feature-discovery publishes Kubernetes node labels describing the
 // Tenstorrent devices on a node.
 //

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 name: helm-docs
 
 # Fails if helm/*/README.md is out of date with values.yaml, so the values

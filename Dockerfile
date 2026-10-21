@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1.7
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 FROM --platform=$BUILDPLATFORM golang:1.25 AS build
 ARG TARGETOS
 ARG TARGETARCH

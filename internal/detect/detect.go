@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+
 // Package detect reports the presence of Tenstorrent devices on the host
 // by scanning a PCI sysfs directory for the Tenstorrent vendor ID.
 package detect
