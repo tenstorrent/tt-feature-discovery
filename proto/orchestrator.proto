@@ -79,6 +79,12 @@ message HostGrouping {
     // or the hierarchy bottoms out at the group; a member in no pod appears
     // only in host_names.
     repeated HostGrouping pods = 3;
+    // Canonical name of the topology type this grouping is a complete
+    // instance of, e.g. "bh-glx-sc4". Set when the members are exactly the
+    // hosts the FSD places under an instance path segment matching a
+    // supported topology type, and number that type's node_count. Empty
+    // otherwise, e.g. for a group connectivity splits off part of an instance.
+    string topology_type = 4;
 }
 
 message QueryTopologySummaryResponse {

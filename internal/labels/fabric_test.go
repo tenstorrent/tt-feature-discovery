@@ -20,8 +20,8 @@ func TestFromFabricSummaryFullRecord(t *testing.T) {
 				Hall: "AUS2", Aisle: "A1", Rack: "12", ShelfU: "34",
 			},
 		},
-		Group: fabric.Grouping{Name: "110-SC36_4x4_C1-10", Size: 3},
-		Pod:   fabric.Grouping{Name: "bh_galaxy_sp_0", Size: 2},
+		Group: fabric.Grouping{Name: "110-SC36_4x4_C1-10", Size: 3, TopologyType: "BH-GLX-SC3"},
+		Pod:   fabric.Grouping{Name: "bh_galaxy_sp_0", Size: 2, TopologyType: "bh-glx-sc2"},
 	})
 
 	want := map[string]string{
@@ -34,8 +34,10 @@ func TestFromFabricSummaryFullRecord(t *testing.T) {
 		LabelFabricConnectedHosts: "2",
 		LabelFabricGroup:          "110-sc36_4x4_c1-10",
 		LabelFabricGroupSize:      "3",
+		LabelFabricGroupTopology:  "bh-glx-sc3",
 		LabelFabricPod:            "110-sc36_4x4_c1-10-bh_galaxy_sp_0",
 		LabelFabricPodSize:        "2",
+		LabelFabricPodTopology:    "bh-glx-sc2",
 		LabelFabricSource:         "psd-fsd",
 	}
 	if len(got) != len(want) {
@@ -63,7 +65,8 @@ func TestFromFabricSummaryPSDOnly(t *testing.T) {
 		LabelDatacenterHall, LabelDatacenterAisle,
 		LabelDatacenterRack, LabelDatacenterShelfU,
 		LabelFabricConnectedHosts, LabelFabricGroup, LabelFabricGroupSize,
-		LabelFabricPod, LabelFabricPodSize,
+		LabelFabricGroupTopology, LabelFabricPod, LabelFabricPodSize,
+		LabelFabricPodTopology,
 	} {
 		if v, ok := got[k]; ok {
 			t.Errorf("%s unexpectedly set to %q", k, v)

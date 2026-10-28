@@ -62,6 +62,9 @@ type Summary struct {
 type Grouping struct {
 	Name string
 	Size int
+	// TopologyType is the supported topology type the grouping is a complete
+	// instance of, e.g. "bh-glx-sc4". Empty when it matches none.
+	TopologyType string
 }
 
 // Client wraps the fabric-manager gRPC client and caches the last successful
@@ -214,16 +217,24 @@ func grouping(resp *orchpb.QueryTopologySummaryResponse, hostName string) (group
 		if !contains(g, hostName) {
 			continue
 		}
-		group = Grouping{Name: g.GetName(), Size: len(g.GetHostNames())}
+		group = newGrouping(g)
 		for _, p := range g.GetPods() {
 			if contains(p, hostName) {
-				pod = Grouping{Name: p.GetName(), Size: len(p.GetHostNames())}
+				pod = newGrouping(p)
 				break
 			}
 		}
 		return group, pod
 	}
 	return Grouping{}, Grouping{}
+}
+
+func newGrouping(g *orchpb.HostGrouping) Grouping {
+	return Grouping{
+		Name:         g.GetName(),
+		Size:         len(g.GetHostNames()),
+		TopologyType: g.GetTopologyType(),
+	}
 }
 
 func contains(g *orchpb.HostGrouping, hostName string) bool {

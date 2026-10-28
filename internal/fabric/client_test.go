@@ -73,7 +73,7 @@ func sampleResponse() *orchpb.QueryTopologySummaryResponse {
 				HostNames: []string{"e01cs01", "e01cs02", "e01cs03"},
 				Name:      "110-SC36_4x4_C1-10",
 				Pods: []*orchpb.HostGrouping{
-					{Name: "bh_galaxy_sp_0", HostNames: []string{"e01cs01", "e01cs02"}},
+					{Name: "bh_galaxy_sp_0", HostNames: []string{"e01cs01", "e01cs02"}, TopologyType: "bh-glx-sc2"},
 					{Name: "bh_galaxy_sp_1", HostNames: []string{"e01cs03"}},
 				},
 			},
@@ -92,11 +92,11 @@ func TestHostSummaryFound(t *testing.T) {
 	if got.Host.GetAsicCount() != 8 {
 		t.Errorf("asic count = %d, want 8", got.Host.GetAsicCount())
 	}
-	if got.Group.Name != "110-SC36_4x4_C1-10" || got.Group.Size != 3 {
+	if got.Group != (Grouping{Name: "110-SC36_4x4_C1-10", Size: 3}) {
 		t.Errorf("group = %+v, want {110-SC36_4x4_C1-10 3}", got.Group)
 	}
-	if got.Pod.Name != "bh_galaxy_sp_0" || got.Pod.Size != 2 {
-		t.Errorf("pod = %+v, want {bh_galaxy_sp_0 2}", got.Pod)
+	if got.Pod != (Grouping{Name: "bh_galaxy_sp_0", Size: 2, TopologyType: "bh-glx-sc2"}) {
+		t.Errorf("pod = %+v, want {bh_galaxy_sp_0 2 bh-glx-sc2}", got.Pod)
 	}
 	if got.Stale {
 		t.Error("fresh response marked stale")
