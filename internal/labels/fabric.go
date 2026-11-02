@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+
 // Fabric-manager-derived label generation.
 //
 // Everything here is a direct projection of the structured HostSummary that

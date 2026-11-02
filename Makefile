@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 # tt-feature-discovery: per-node DaemonSet that publishes
 # tenstorrent.com/* node labels via NFD's local feature-file source.
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 name: Release Helm Chart
 
 # Publishes the tt-feature-discovery chart to oci://ghcr.io/tenstorrent/helm

@@ -1,4 +1,8 @@
 {{- /*
+SPDX-License-Identifier: Apache-2.0
+SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+*/ -}}
+{{- /*
 Per-node DaemonSet. Publishes tenstorrent.com/* labels by writing an NFD
 local-source feature file; the node-feature-discovery worker on the same
 node turns it into node labels. No API access, so no ServiceAccount and no

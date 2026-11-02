@@ -186,7 +186,9 @@ Node identity is matched on the name the fabric-manager agent registered under
 sets `NODE_NAME` from `spec.nodeName`. Matching falls back to a
 case-insensitive comparison of the leading DNS label.
 
-## Prerequisites
+## Getting Started
+
+### Prerequisites
 
 - A cluster with NFD installed (the [tt-operator][tt-operator] umbrella chart
   installs NFD with the right config).
@@ -196,7 +198,7 @@ case-insensitive comparison of the leading DNS label.
 
 [tt-operator]: https://github.com/tenstorrent/tt-operator
 
-## Install
+### Install
 
 Packaged as a Helm chart under [`helm/tt-feature-discovery`](./helm/tt-feature-discovery),
 published to `oci://ghcr.io/tenstorrent/helm`:
@@ -244,6 +246,15 @@ proto of the same name, carrying only `QueryTopologySummary`. Field numbers are
 the wire contract — keep them in sync with upstream. The generated bindings
 under `internal/fabric/orchestratorpb/` are checked in.
 
+## Contributing
+
+Report bugs through [GitHub Issues](https://github.com/tenstorrent/tt-feature-discovery/issues)
+and submit fixes or features as pull requests, which are reviewed weekly. See
+[CONTRIBUTING.md](./CONTRIBUTING.md) and the [Code of Conduct](./CODE_OF_CONDUCT.md).
+Report security issues as described in [SECURITY.md](./SECURITY.md).
+
 ## License
 
-Apache-2.0 — see [LICENSE](./LICENSE).
+- [LICENSE](./LICENSE) — Overall license for this project, except where specified (Apache-2.0).
+- [LICENSE_understanding.txt](./LICENSE_understanding.txt) — Clarification of how the license applies to Tenstorrent products.
+- [NOTICE](./NOTICE) — Copyright and third-party attributions.

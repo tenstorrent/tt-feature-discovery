@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+
 // Package fabric is a small gRPC client for tt-fabric-manager.
 //
 // It calls QueryTopologySummary and hands back the HostSummary record for

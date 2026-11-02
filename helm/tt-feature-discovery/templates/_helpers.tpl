@@ -1,3 +1,7 @@
+{{- /*
+SPDX-License-Identifier: Apache-2.0
+SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+*/ -}}
 {{- define "tt-feature-discovery.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}

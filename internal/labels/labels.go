@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+
 // Package labels writes node-feature-discovery feature files.
 //
 // node-feature-discovery's local source reads files from
