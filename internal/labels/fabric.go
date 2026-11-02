@@ -35,8 +35,10 @@ const (
 	LabelFabricConnectedHosts = "tenstorrent.com/fabric.connected-hosts"
 	LabelFabricGroup          = "tenstorrent.com/fabric.group"
 	LabelFabricGroupSize      = "tenstorrent.com/fabric.group-size"
+	LabelFabricGroupTopology  = "tenstorrent.com/fabric.group-topology"
 	LabelFabricPod            = "tenstorrent.com/fabric.pod"
 	LabelFabricPodSize        = "tenstorrent.com/fabric.pod-size"
+	LabelFabricPodTopology    = "tenstorrent.com/fabric.pod-topology"
 	LabelFabricSource         = "tenstorrent.com/fabric.source"
 )
 
@@ -86,6 +88,10 @@ func FromFabricSummary(s *fabric.Summary) map[string]string {
 	if s.Pod.Size > 0 {
 		out[LabelFabricPodSize] = strconv.Itoa(s.Pod.Size)
 	}
+	// Topology types are only set on groupings that are a complete instance of
+	// a supported type, so most hosts get at most one of these.
+	put(LabelFabricGroupTopology, s.Group.TopologyType)
+	put(LabelFabricPodTopology, s.Pod.TopologyType)
 
 	put(LabelFabricSource, sourceName(s.Host.GetSource()))
 

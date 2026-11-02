@@ -132,8 +132,10 @@ projection of its answer rather than a second, independent FSD parser.
 | `tenstorrent.com/fabric.connected-hosts` | `2`         | Hosts reachable via this host's exit nodes |
 | `tenstorrent.com/fabric.group`         | `110-sc36_4x4_c1-10` | Name of this host's connectivity group |
 | `tenstorrent.com/fabric.group-size`    | `3`           | Hosts in this host's connectivity group  |
+| `tenstorrent.com/fabric.group-topology` | `bh-glx-sc4` | Topology type the group is a complete instance of |
 | `tenstorrent.com/fabric.pod`           | `sc36-blah-sc20_0-sc16_0-bh_glx_pod_2` | Path of this host's pod in the cabling hierarchy |
 | `tenstorrent.com/fabric.pod-size`      | `2`           | Hosts in this host's pod                 |
+| `tenstorrent.com/fabric.pod-topology`  | `bh-glx-sc2`  | Topology type the pod is a complete instance of |
 | `tenstorrent.com/fabric.source`        | `psd-fsd`     | Which view the fabric manager had: `psd`, `fsd`, or `psd-fsd` |
 
 A group is a connected component over cross-host fabric links. Its name, and
@@ -142,6 +144,12 @@ deepest instance-path prefix that still covers more than one host. Both names
 are best-effort — the fabric manager leaves a group unnamed when no member is
 FSD-described, omits pods when the hierarchy bottoms out at the group, and a
 host can belong to a group but to no pod.
+
+The `-topology` labels name the supported topology type (as configured in the
+fabric manager's `supported_topology_shapes`) that a group or pod is a complete
+instance of. They are set only when the grouping's members are exactly the
+hosts of one FSD instance of that type, so a group that connectivity splits off
+part of an instance carries none.
 
 The fabric manager names a pod *relative to its group*, so `fabric.pod` is the
 group path and the pod name joined: a bare leaf like `bh_glx_pod_2` repeats
